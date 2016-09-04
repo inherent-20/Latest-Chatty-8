@@ -123,11 +123,28 @@ namespace Latest_Chatty_8.Controls
 			var appliedRunTypes = new Stack<RunType>();
 			Paragraph spoiledPara = null;
 
-			foreach (var line in lines)
+			try
 			{
-				var paragraph = new Windows.UI.Xaml.Documents.Paragraph();
-				AddRunsToParagraph(ref paragraph, ref spoiledPara, ref appliedRunTypes, line);
-				this.postBody.Blocks.Add(paragraph);
+				foreach (var line in lines)
+				{
+					var paragraph = new Windows.UI.Xaml.Documents.Paragraph();
+					AddRunsToParagraph(ref paragraph, ref spoiledPara, ref appliedRunTypes, line);
+					this.postBody.Blocks.Add(paragraph);
+				}
+			}
+			catch (Exception ex)
+			{
+				var para = new Paragraph();
+				para.Inlines.Add(CreateNewRun(new List<RunType>() { RunType.Red, RunType.Bold }, "Error parsing post. Here's some more info:" + Environment.NewLine));
+				para.Inlines.Add(CreateNewRun(new List<RunType>() { RunType.Red }, ex.Message + Environment.NewLine));
+				var stackPara = new Paragraph();
+				stackPara.Inlines.Add(CreateNewRun(new List<RunType>(), ex.StackTrace));
+				var spoiler = new Spoiler();
+				spoiler.SetText(stackPara);
+				var inlineControl = new InlineUIContainer();
+				inlineControl.Child = spoiler;
+				para.Inlines.Add(inlineControl);
+				this.postBody.Blocks.Add(para);
 			}
 		}
 
@@ -157,14 +174,14 @@ namespace Latest_Chatty_8.Controls
 						AddSegment(para, appliedRunTypes, builder, spoiledPara);
 
 						//Find the closing tag.
-						var closeLocation = line.IndexOf("</a>", iCurrentPosition + lengthOfTag, StringComparison.OrdinalIgnoreCase);
+						var closeLocation = line.IndexOf("</a>", iCurrentPosition + lengthOfTag, StringComparison.Ordinal);
 						if (closeLocation > -1)
 						{
-							var startOfHref = line.IndexOf("href=\"", iCurrentPosition, StringComparison.OrdinalIgnoreCase);
+							var startOfHref = line.IndexOf("href=\"", iCurrentPosition, StringComparison.Ordinal);
 							if (startOfHref > -1)
 							{
 								startOfHref = startOfHref + 6;
-								var endOfHref = line.IndexOf("\">", startOfHref, StringComparison.OrdinalIgnoreCase);
+								var endOfHref = line.IndexOf("\">", startOfHref, StringComparison.Ordinal);
 								var linkText = line.Substring(iCurrentPosition + lengthOfTag, closeLocation - (iCurrentPosition + lengthOfTag));
 								var link = line.Substring(startOfHref, endOfHref - startOfHref);
 								var hyperLink = new Hyperlink();
@@ -273,7 +290,7 @@ namespace Latest_Chatty_8.Controls
 			builder.Clear();
 		}
 
-		private Run CreateNewRun(Stack<RunType> appliedRunTypes, string text)
+		private Run CreateNewRun(IEnumerable<RunType> appliedRunTypes, string text)
 		{
 			var run = new Run();
 			run.FontSize = (double)App.Current.Resources["ControlContentThemeFontSize"];
@@ -285,7 +302,7 @@ namespace Latest_Chatty_8.Controls
 		private void HyperLink_Click(Hyperlink sender, HyperlinkClickEventArgs args)
 		{
 			var linkText = ((Run)sender.Inlines[0]).Text;
-   //      if (linkText.Contains(".jpg"))
+			//      if (linkText.Contains(".jpg"))
 			//{
 			//	var imageContainer = new InlineUIContainer();
 			//	var image = new Windows.UI.Xaml.Controls.Image();
@@ -302,7 +319,7 @@ namespace Latest_Chatty_8.Controls
 			//}
 			if (this.LinkClicked != null)
 			{
-            this.LinkClicked(this, new LinkClickedEventArgs(new Uri(linkText)));
+				this.LinkClicked(this, new LinkClickedEventArgs(new Uri(linkText)));
 			}
 		}
 
@@ -315,24 +332,24 @@ namespace Latest_Chatty_8.Controls
 				{
 					if (line[position + 1] != '/')
 					{
-						if (line.IndexOf("<u>", position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf("<u>", position, StringComparison.Ordinal) == position)
 						{
 							return new Tuple<RunType, int>(RunType.Underline, 3);
 						}
-						if (line.IndexOf("<i>", position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf("<i>", position, StringComparison.Ordinal) == position)
 						{
 							return new Tuple<RunType, int>(RunType.Italics, 3);
 						}
-						if (line.IndexOf("<b>", position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf("<b>", position, StringComparison.Ordinal) == position)
 						{
 							return new Tuple<RunType, int>(RunType.Bold, 3);
 						}
 						//It's a style tag
-						if (line.IndexOf("<span class=\"jt_", position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf("<span class=\"jt_", position, StringComparison.Ordinal) == position)
 						{
 							foreach (var tagToFind in FindTags)
 							{
-								if (line.IndexOf(tagToFind.TagName, position + 16, StringComparison.OrdinalIgnoreCase) == position + 16)
+								if (line.IndexOf(tagToFind.TagName, position + 16, StringComparison.Ordinal) == position + 16)
 								{
 									return new Tuple<RunType, int>(tagToFind.Type, line.IndexOf('>', position + 16) + 1 - position);
 								}
@@ -340,11 +357,11 @@ namespace Latest_Chatty_8.Controls
 							//There's apparently a WTF242 style, not going to handle that.  Maybe they'll add more later, don't want to break if it's there.
 							return new Tuple<RunType, int>(RunType.UnknownStyle, line.IndexOf('>', position + 16) + 1 - position);
 						}
-						if (line.IndexOf("<a target=\"_blank\" href=\"", position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf("<a target=\"_blank\" href=\"", position, StringComparison.Ordinal) == position)
 						{
 							return new Tuple<RunType, int>(RunType.Hyperlink, line.IndexOf('>', position + 40) + 1 - position);
 						}
-						if(line.IndexOf("<pre class=\"jt_code\">", position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf("<pre class=\"jt_code\">", position, StringComparison.Ordinal) == position)
 						{
 							return new Tuple<RunType, int>(RunType.Code, 21);
 						}
@@ -352,7 +369,7 @@ namespace Latest_Chatty_8.Controls
 
 					foreach (var tag in this.EndTags)
 					{
-						if (line.IndexOf(tag, position, StringComparison.OrdinalIgnoreCase) == position)
+						if (line.IndexOf(tag, position, StringComparison.Ordinal) == position)
 						{
 							return new Tuple<RunType, int>(RunType.End, tag.Length);
 						}
